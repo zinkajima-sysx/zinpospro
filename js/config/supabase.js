@@ -5,7 +5,7 @@
 
 const CONFIG = {
     SUPABASE_URL: "https://pgopeapgcwoegdnbabgi.supabase.co",
-    SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnb3BlYXBnY3dvZWdkbmJhYmdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNTU0NzcsImV4cCI6MjA4OTkzMTQ3N30.aIfqBe-L2EoezCiESmfWt5Ky5erJn_7gj2zszXhHrRA",
+    SUPABASE_KEY: "sb_publishable_7_pwETDKQcpcTr4Hw1JZzg_pHkKh3-x",
     APP: {
         DEFAULT_TOKO: "00000000-0000-0000-0000-000000000001"
     }
