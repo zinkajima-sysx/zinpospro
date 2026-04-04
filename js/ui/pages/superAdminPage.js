@@ -6,12 +6,15 @@ const superAdminPage = {
         includeDeleted: false,
         rows: []
     },
+    _initialized: false,
+    _loadingRequest: false,
 
-    render() {
+    render(opts = {}) {
         const mainContent = document.getElementById('main-content');
         if (!mainContent) return;
 
         if (!window.superAdminStore?.isLoggedIn()) {
+            this._initialized = false;
             mainContent.innerHTML = this.renderLogin();
             this.setupLogin();
             if (window.lucide) window.lucide.createIcons();
@@ -20,7 +23,10 @@ const superAdminPage = {
 
         mainContent.innerHTML = this.renderPanel();
         this.setupPanel();
-        this.load();
+        if (!opts.skipLoad && !this._initialized) {
+            this._initialized = true;
+            this.load();
+        }
         if (window.lucide) window.lucide.createIcons();
     },
 
@@ -211,7 +217,6 @@ const superAdminPage = {
         const includeDeleted = document.getElementById('sa-include-deleted');
         const refresh = document.getElementById('sa-refresh');
 
-        if (q) q.oninput = () => { this.state.q = q.value; };
         if (status) status.onchange = () => { this.state.status = status.value; this.load(); };
         if (includeDeleted) includeDeleted.onchange = () => { this.state.includeDeleted = includeDeleted.checked; this.load(); };
         if (refresh) refresh.onclick = () => this.load();
@@ -227,8 +232,10 @@ const superAdminPage = {
     },
 
     async load() {
+        if (this._loadingRequest) return;
+        this._loadingRequest = true;
         this.state.loading = true;
-        this.render();
+        this.render({ skipLoad: true });
         try {
             const rows = await window.superAdminAPI.listStores({
                 q: this.state.q,
@@ -242,7 +249,8 @@ const superAdminPage = {
             this.state.rows = [];
         } finally {
             this.state.loading = false;
-            this.render();
+            this._loadingRequest = false;
+            this.render({ skipLoad: true });
         }
     },
 
