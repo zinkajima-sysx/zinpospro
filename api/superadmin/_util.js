@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
 
 function base64url(input) {
     return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -16,6 +18,7 @@ function signToken(payload, secret, expSeconds = 60 * 60 * 12) {
 }
 
 function verifyToken(token, secret) {
+    if (!secret) return null;
     if (!token || typeof token !== 'string') return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -40,6 +43,43 @@ function getBearer(req) {
     return m ? m[1] : null;
 }
 
+function requestJson({ method, url, headers = {}, body = null, timeoutMs = 15000 }) {
+    return new Promise((resolve) => {
+        const u = new URL(url);
+        const lib = u.protocol === 'http:' ? http : https;
+
+        const opts = {
+            method,
+            hostname: u.hostname,
+            port: u.port || (u.protocol === 'http:' ? 80 : 443),
+            path: u.pathname + (u.search || ''),
+            headers
+        };
+
+        const req = lib.request(opts, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                let json = null;
+                try { json = data ? JSON.parse(data) : null; } catch (_) { json = null; }
+                const status = res.statusCode || 0;
+                resolve({ status, ok: status >= 200 && status < 300, json, raw: data });
+            });
+        });
+
+        req.on('error', (e) => {
+            resolve({ status: 0, ok: false, json: null, raw: String(e && e.message ? e.message : e) });
+        });
+
+        req.setTimeout(timeoutMs, () => {
+            req.destroy(new Error('timeout'));
+        });
+
+        if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
+        req.end();
+    });
+}
+
 function json(res, statusCode, body) {
     res.statusCode = statusCode;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -51,5 +91,6 @@ module.exports = {
     signToken,
     verifyToken,
     getBearer,
+    requestJson,
     json
 };

@@ -1,4 +1,4 @@
-const { verifyToken, getBearer, json } = require('./_util');
+const { verifyToken, getBearer, requestJson, json } = require('./_util');
 
 module.exports = async (req, res) => {
     if (req.method !== 'GET') {
@@ -21,9 +21,10 @@ module.exports = async (req, res) => {
         return;
     }
 
-    const q = String((req.query && req.query.q) || '').trim().toLowerCase();
-    const status = String((req.query && req.query.status) || 'all').trim().toLowerCase();
-    const includeDeleted = String((req.query && req.query.includeDeleted) || '') === '1';
+    const u = new URL(req.url, 'http://localhost');
+    const q = String(u.searchParams.get('q') || '').trim().toLowerCase();
+    const status = String(u.searchParams.get('status') || 'all').trim().toLowerCase();
+    const includeDeleted = String(u.searchParams.get('includeDeleted') || '') === '1';
 
     const select = 'id_toko,nama_toko,alamat,no_tlp,email,owner,status,created_at,deleted_at';
     const params = new URLSearchParams();
@@ -33,7 +34,9 @@ module.exports = async (req, res) => {
     if (status && status !== 'all') params.set('status', `eq.${status}`);
 
     const url = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/settings?${params.toString()}`;
-    const r = await fetch(url, {
+    const r = await requestJson({
+        method: 'GET',
+        url,
         headers: {
             apikey: serviceKey,
             Authorization: `Bearer ${serviceKey}`,
@@ -41,13 +44,12 @@ module.exports = async (req, res) => {
         }
     });
 
-    const data = await r.json().catch(() => null);
     if (!r.ok) {
-        json(res, 500, { error: 'Failed to fetch stores', detail: data });
+        json(res, 500, { error: 'Failed to fetch stores', detail: r.json || r.raw });
         return;
     }
 
-    let rows = Array.isArray(data) ? data : [];
+    let rows = Array.isArray(r.json) ? r.json : [];
     if (q) {
         rows = rows.filter(x => {
             const a = String(x.nama_toko || '').toLowerCase();

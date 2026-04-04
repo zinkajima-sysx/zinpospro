@@ -1,4 +1,4 @@
-const { verifyToken, getBearer, json } = require('./_util');
+const { verifyToken, getBearer, requestJson, json } = require('./_util');
 
 module.exports = async (req, res) => {
     const token = getBearer(req);
@@ -56,8 +56,9 @@ module.exports = async (req, res) => {
         patch = { status: 'deleted', deleted_at: new Date().toISOString() };
     }
 
-    const r = await fetch(url, {
+    const r = await requestJson({
         method: 'PATCH',
+        url,
         headers: {
             apikey: serviceKey,
             Authorization: `Bearer ${serviceKey}`,
@@ -67,12 +68,12 @@ module.exports = async (req, res) => {
         body: JSON.stringify(patch)
     });
 
-    const data = await r.json().catch(() => null);
     if (!r.ok) {
-        json(res, 500, { error: 'Failed to update store', detail: data });
+        json(res, 500, { error: 'Failed to update store', detail: r.json || r.raw });
         return;
     }
 
+    const data = r.json;
     const row = Array.isArray(data) ? data[0] : data;
     json(res, 200, { data: row });
 };

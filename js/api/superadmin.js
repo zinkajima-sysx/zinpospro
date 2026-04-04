@@ -19,9 +19,14 @@ const superAdminAPI = {
         if (status) params.set('status', status);
         if (includeDeleted) params.set('includeDeleted', '1');
 
-        const res = await fetch(`/api/superadmin/stores?${params.toString()}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        let res;
+        try {
+            res = await fetch(`/api/superadmin/stores?${params.toString()}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        } catch (e) {
+            throw new Error('Gagal menghubungi endpoint superadmin. Pastikan deployment Vercel sudah terbaru dan env SUPABASE_SERVICE_ROLE_KEY sudah di-set.');
+        }
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || 'Gagal memuat data toko');
         return json.data || [];
