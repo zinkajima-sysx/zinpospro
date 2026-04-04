@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
     const status = String(u.searchParams.get('status') || 'all').trim().toLowerCase();
     const includeDeleted = String(u.searchParams.get('includeDeleted') || '') === '1';
 
-    const select = 'id_toko,nama_toko,alamat,no_tlp,email,owner,status,created_at,deleted_at';
+    const select = 'id_toko,nama_toko,alamat,no_tlp,email,owner,status,created_at,deleted_at,suspend_reason,suspended_at';
     const params = new URLSearchParams();
     params.set('select', select);
     params.set('order', 'created_at.desc');

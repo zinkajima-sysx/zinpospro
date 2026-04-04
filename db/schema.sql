@@ -16,8 +16,20 @@ create table settings (
     email text,
     owner text,
     status text default 'active',
+    suspend_reason text,
     suspended_at timestamptz,
     deleted_at timestamptz,
+    created_at timestamptz default now()
+);
+
+create table if not exists admin_audit_logs (
+    id bigserial primary key,
+    id_toko uuid references settings(id_toko) on delete set null,
+    action text not null,
+    from_status text,
+    to_status text,
+    reason text,
+    performed_by text,
     created_at timestamptz default now()
 );
 
@@ -31,6 +43,15 @@ begin
           and column_name = 'status'
     ) then
         alter table public.settings add column status text default 'active';
+    end if;
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'settings'
+          and column_name = 'suspend_reason'
+    ) then
+        alter table public.settings add column suspend_reason text;
     end if;
     if not exists (
         select 1

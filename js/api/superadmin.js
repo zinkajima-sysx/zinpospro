@@ -35,7 +35,7 @@ const superAdminAPI = {
         return json.data || [];
     },
 
-    async updateStoreStatus(id_toko, status) {
+    async updateStoreStatus(id_toko, status, reason = '') {
         const token = window.superAdminStore?.state?.token;
         if (!token) throw new Error('Belum login superadmin');
         const res = await fetch('/api/superadmin/store', {
@@ -44,7 +44,7 @@ const superAdminAPI = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ id_toko, status })
+            body: JSON.stringify({ id_toko, status, reason })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -54,7 +54,7 @@ const superAdminAPI = {
         return json.data;
     },
 
-    async softDeleteStore(id_toko) {
+    async softDeleteStore(id_toko, reason = '') {
         const token = window.superAdminStore?.state?.token;
         if (!token) throw new Error('Belum login superadmin');
         const res = await fetch('/api/superadmin/store', {
@@ -63,7 +63,7 @@ const superAdminAPI = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ id_toko })
+            body: JSON.stringify({ id_toko, reason })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -71,6 +71,20 @@ const superAdminAPI = {
             throw new Error((json.error || 'Gagal menghapus toko') + detail);
         }
         return json.data;
+    },
+    async getLogs(id_toko, limit = 30) {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const params = new URLSearchParams({ id_toko, limit: String(limit) });
+        const res = await fetch(`/api/superadmin/logs?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memuat audit log') + detail);
+        }
+        return json.data || [];
     }
 };
 

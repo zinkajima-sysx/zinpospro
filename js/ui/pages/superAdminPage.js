@@ -4,10 +4,13 @@ const superAdminPage = {
         q: '',
         status: 'all',
         includeDeleted: false,
-        rows: []
+        rows: [],
+        page: 1,
+        perPage: 10
     },
     _initialized: false,
     _loadingRequest: false,
+    _modalOpen: false,
 
     render(opts = {}) {
         const mainContent = document.getElementById('main-content');
@@ -76,6 +79,14 @@ const superAdminPage = {
 
     renderPanel() {
         const rows = this.state.rows || [];
+        const page = Math.max(1, parseInt(this.state.page || 1, 10));
+        const perPage = Math.max(5, parseInt(this.state.perPage || 10, 10));
+        const total = rows.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        const safePage = Math.min(page, totalPages);
+        const start = (safePage - 1) * perPage;
+        const end = Math.min(total, start + perPage);
+        const pageRows = rows.slice(start, end);
         const loading = this.state.loading;
         return `
             <div class="page-container" style="max-width:1200px;">
@@ -110,8 +121,17 @@ const superAdminPage = {
                             <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
                             Refresh
                         </button>
+                        <select id="sa-perpage" class="search-input" style="width:120px;padding-left:12px;">
+                            <option value="10" ${perPage === 10 ? 'selected' : ''}>10 / halaman</option>
+                            <option value="25" ${perPage === 25 ? 'selected' : ''}>25 / halaman</option>
+                            <option value="50" ${perPage === 50 ? 'selected' : ''}>50 / halaman</option>
+                        </select>
+                        <button id="sa-export" class="btn btn-outline btn-sm" style="gap:6px;">
+                            <i data-lucide="download" style="width:15px;height:15px;"></i>
+                            Export CSV
+                        </button>
                         <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">
-                            ${loading ? 'Memuat...' : `${rows.length} toko`}
+                            ${loading ? 'Memuat...' : `Menampilkan ${total ? (start + 1) : 0}-${end} dari ${total} toko`}
                         </div>
                     </div>
                 </div>
@@ -124,16 +144,28 @@ const superAdminPage = {
                                     <th>Nama Toko</th>
                                     <th class="table-hide-mobile">Owner</th>
                                     <th class="table-hide-mobile">Email</th>
+                                    <th class="table-hide-mobile">No HP</th>
+                                    <th class="table-hide-mobile">Dibuat</th>
                                     <th>Status</th>
                                     <th style="text-align:right;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${rows.length ? rows.map(r => this.renderRow(r)).join('') : `
-                                    <tr><td colspan="5" style="padding:18px;color:var(--text-muted);font-size:13px;">Tidak ada data</td></tr>
+                                ${pageRows.length ? pageRows.map(r => this.renderRow(r)).join('') : `
+                                    <tr><td colspan="7" style="padding:18px;color:var(--text-muted);font-size:13px;">Tidak ada data</td></tr>
                                 `}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+                    <div class="pagination">
+                        <button class="btn btn-outline btn-sm" ${safePage <= 1 ? 'disabled' : ''} onclick="superAdminPage.setPage(${safePage - 1})">Prev</button>
+                        <div style="min-width:110px;text-align:center;font-size:13px;color:var(--text-muted);padding:8px 10px;">
+                            Hal ${safePage} / ${totalPages}
+                        </div>
+                        <button class="btn btn-outline btn-sm" ${safePage >= totalPages ? 'disabled' : ''} onclick="superAdminPage.setPage(${safePage + 1})">Next</button>
                     </div>
                 </div>
             </div>
@@ -150,15 +182,18 @@ const superAdminPage = {
 
         const actions = status === 'active'
             ? `
+                <button class="btn btn-outline btn-sm" onclick="superAdminPage.showDetail('${r.id_toko}')">Detail</button>
                 <button class="btn btn-outline btn-sm" onclick="superAdminPage.setStatus('${r.id_toko}','suspended')">Suspend</button>
                 <button class="btn btn-outline btn-sm btn-warning" onclick="superAdminPage.softDelete('${r.id_toko}')">Delete</button>
               `
             : status === 'suspended'
                 ? `
+                    <button class="btn btn-outline btn-sm" onclick="superAdminPage.showDetail('${r.id_toko}')">Detail</button>
                     <button class="btn btn-primary btn-sm" onclick="superAdminPage.setStatus('${r.id_toko}','active')">Activate</button>
                     <button class="btn btn-outline btn-sm btn-warning" onclick="superAdminPage.softDelete('${r.id_toko}')">Delete</button>
                   `
                 : `
+                    <button class="btn btn-outline btn-sm" onclick="superAdminPage.showDetail('${r.id_toko}')">Detail</button>
                     <button class="btn btn-primary btn-sm" onclick="superAdminPage.setStatus('${r.id_toko}','active')">Restore</button>
                   `;
 
@@ -172,6 +207,8 @@ const superAdminPage = {
                 </td>
                 <td class="table-hide-mobile">${this.escape(r.owner || '-')}</td>
                 <td class="table-hide-mobile">${this.escape(r.email || '-')}</td>
+                <td class="table-hide-mobile">${this.escape(r.no_tlp || '-')}</td>
+                <td class="table-hide-mobile">${this.escape(this.formatDate(r.created_at))}</td>
                 <td>${badge}</td>
                 <td style="text-align:right;">
                     <div class="flex" style="justify-content:flex-end;gap:8px;flex-wrap:wrap;">
@@ -216,17 +253,21 @@ const superAdminPage = {
         const status = document.getElementById('sa-status');
         const includeDeleted = document.getElementById('sa-include-deleted');
         const refresh = document.getElementById('sa-refresh');
+        const perpage = document.getElementById('sa-perpage');
+        const exportBtn = document.getElementById('sa-export');
 
         if (status) status.onchange = () => { this.state.status = status.value; this.load(); };
         if (includeDeleted) includeDeleted.onchange = () => { this.state.includeDeleted = includeDeleted.checked; this.load(); };
         if (refresh) refresh.onclick = () => this.load();
+        if (perpage) perpage.onchange = () => { this.state.perPage = parseInt(perpage.value, 10) || 10; this.state.page = 1; this.render({ skipLoad: true }); };
+        if (exportBtn) exportBtn.onclick = () => this.exportCsv();
 
         if (q) {
             let t = null;
             q.oninput = () => {
                 this.state.q = q.value;
                 if (t) clearTimeout(t);
-                t = setTimeout(() => this.load(), 350);
+                t = setTimeout(() => { this.state.page = 1; this.load(); }, 350);
             };
         }
     },
@@ -256,7 +297,12 @@ const superAdminPage = {
 
     async setStatus(id_toko, status) {
         try {
-            await window.superAdminAPI.updateStoreStatus(id_toko, status);
+            let reason = '';
+            if (status === 'suspended') {
+                reason = await this.promptReason('Suspend', 'Masukkan alasan suspend (opsional):');
+                if (reason === null) return;
+            }
+            await window.superAdminAPI.updateStoreStatus(id_toko, status, reason || '');
             showToast('Status toko diperbarui', 'success');
             await this.load();
         } catch (err) {
@@ -269,12 +315,166 @@ const superAdminPage = {
         try {
             const ok = confirm('Hapus toko ini? Data tidak akan dihapus permanen, tapi status akan menjadi deleted.');
             if (!ok) return;
-            await window.superAdminAPI.softDeleteStore(id_toko);
+            const reason = await this.promptReason('Delete', 'Masukkan alasan delete (opsional):');
+            if (reason === null) return;
+            await window.superAdminAPI.softDeleteStore(id_toko, reason || '');
             showToast('Toko dihapus (soft delete)', 'success');
             await this.load();
         } catch (err) {
             console.error(err);
             showToast(err.message || 'Gagal menghapus toko', 'error');
+        }
+    },
+
+    setPage(page) {
+        this.state.page = Math.max(1, parseInt(page, 10) || 1);
+        this.render({ skipLoad: true });
+    },
+
+    exportCsv() {
+        const rows = this.state.rows || [];
+        const header = ['id_toko', 'nama_toko', 'owner', 'email', 'no_tlp', 'status', 'created_at'];
+        const csvEscape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const lines = [
+            header.join(','),
+            ...rows.map(r => header.map(k => csvEscape(r[k])).join(','))
+        ];
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `zinpos_stores_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    },
+
+    async showDetail(id_toko) {
+        if (this._modalOpen) return;
+        this._modalOpen = true;
+        const row = (this.state.rows || []).find(x => String(x.id_toko) === String(id_toko));
+        const logs = await (window.superAdminAPI?.getLogs ? window.superAdminAPI.getLogs(id_toko, 30).catch(() => []) : Promise.resolve([]));
+
+        const modal = document.createElement('div');
+        modal.id = 'sa-modal';
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+        modal.style.background = 'rgba(15,23,42,.55)';
+        modal.style.zIndex = '9999';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.padding = '18px';
+        modal.innerHTML = `
+            <div class="card" style="width:100%;max-width:900px;max-height:85dvh;overflow:auto;padding:18px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+                    <div>
+                        <div style="font-weight:900;font-size:16px;">Detail Toko</div>
+                        <div class="text-muted" style="font-size:12px;">${this.escape(id_toko)}</div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" id="sa-modal-close">Tutup</button>
+                </div>
+                <div class="card" style="padding:14px;margin-bottom:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div><div class="text-muted" style="font-size:11px;">Nama Toko</div><div style="font-weight:800;">${this.escape(row?.nama_toko || '-')}</div></div>
+                        <div><div class="text-muted" style="font-size:11px;">Status</div><div style="font-weight:800;">${this.escape(row?.status || 'active')}</div></div>
+                        <div><div class="text-muted" style="font-size:11px;">Owner</div><div style="font-weight:800;">${this.escape(row?.owner || '-')}</div></div>
+                        <div><div class="text-muted" style="font-size:11px;">Email</div><div style="font-weight:800;">${this.escape(row?.email || '-')}</div></div>
+                        <div><div class="text-muted" style="font-size:11px;">No HP</div><div style="font-weight:800;">${this.escape(row?.no_tlp || '-')}</div></div>
+                        <div><div class="text-muted" style="font-size:11px;">Dibuat</div><div style="font-weight:800;">${this.escape(this.formatDate(row?.created_at))}</div></div>
+                    </div>
+                </div>
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:900;">Audit Log</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>Aksi</th>
+                                    <th>Dari</th>
+                                    <th>Ke</th>
+                                    <th>Alasan</th>
+                                    <th>Oleh</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(logs && logs.length) ? logs.map(l => `
+                                    <tr>
+                                        <td>${this.escape(this.formatDate(l.created_at))}</td>
+                                        <td style="font-weight:800;">${this.escape(l.action || '-')}</td>
+                                        <td>${this.escape(l.from_status || '-')}</td>
+                                        <td>${this.escape(l.to_status || '-')}</td>
+                                        <td>${this.escape(l.reason || '-')}</td>
+                                        <td>${this.escape(l.performed_by || '-')}</td>
+                                    </tr>
+                                `).join('') : `<tr><td colspan="6" style="padding:14px;color:var(--text-muted);font-size:13px;">Belum ada log</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const close = () => {
+            modal.remove();
+            this._modalOpen = false;
+        };
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+        const btn = document.getElementById('sa-modal-close');
+        if (btn) btn.onclick = close;
+    },
+
+    promptReason(title, label) {
+        if (this._modalOpen) return Promise.resolve(null);
+        this._modalOpen = true;
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.id = 'sa-reason-modal';
+            modal.style.position = 'fixed';
+            modal.style.inset = '0';
+            modal.style.background = 'rgba(15,23,42,.55)';
+            modal.style.zIndex = '9999';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.padding = '18px';
+            modal.innerHTML = `
+                <div class="card" style="width:100%;max-width:520px;padding:18px;">
+                    <div style="font-weight:900;font-size:16px;margin-bottom:6px;">${this.escape(title)}</div>
+                    <div class="text-muted" style="font-size:13px;margin-bottom:10px;">${this.escape(label)}</div>
+                    <textarea id="sa-reason-input" class="search-input" style="min-height:90px;padding:12px 14px;line-height:1.5;resize:vertical;"></textarea>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;">
+                        <button class="btn btn-outline btn-sm" id="sa-reason-cancel">Batal</button>
+                        <button class="btn btn-primary btn-sm" id="sa-reason-ok">Simpan</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const cleanup = () => {
+                modal.remove();
+                this._modalOpen = false;
+            };
+            modal.addEventListener('click', (e) => { if (e.target === modal) { cleanup(); resolve(null); } });
+            const cancel = document.getElementById('sa-reason-cancel');
+            const ok = document.getElementById('sa-reason-ok');
+            const input = document.getElementById('sa-reason-input');
+            if (cancel) cancel.onclick = () => { cleanup(); resolve(null); };
+            if (ok) ok.onclick = () => { const v = input ? String(input.value || '').trim() : ''; cleanup(); resolve(v); };
+            if (input) input.focus();
+        });
+    },
+
+    formatDate(v) {
+        if (!v) return '';
+        try {
+            const d = new Date(v);
+            if (Number.isNaN(d.getTime())) return String(v);
+            return d.toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        } catch (_) {
+            return String(v);
         }
     },
 
