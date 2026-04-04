@@ -4,10 +4,24 @@
 const App = {
     async init() {
         console.log('Initializing ZinPOS Pro App...');
+        const loader = document.getElementById('page-loader');
+        const loadingHintTimer = setTimeout(() => {
+            if (!loader) return;
+            loader.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                    <div class="loader"></div>
+                    <div class="text-muted" style="font-size:13px;text-align:center;max-width:520px;line-height:1.6;">
+                        Masih memuat… Jika ini tidak selesai, coba refresh atau hapus cache PWA (Service Worker).
+                    </div>
+                </div>
+            `;
+        }, 8000);
+
         if (window.supabaseReady) {
             try {
                 await window.supabaseReady;
             } catch (e) {
+                clearTimeout(loadingHintTimer);
                 const app = document.getElementById('app');
                 if (app) {
                     app.innerHTML = `
@@ -28,6 +42,7 @@ const App = {
                 return;
             }
         } else {
+            clearTimeout(loadingHintTimer);
             const app = document.getElementById('app');
             if (app) {
                 app.innerHTML = `
@@ -63,7 +78,7 @@ const App = {
 
         if (window.superAdminStore) await window.superAdminStore.init();
         await window.authStore.init();
-        const loader = document.getElementById('page-loader');
+        clearTimeout(loadingHintTimer);
         if (loader) loader.style.display = 'none';
         rerender();
     },

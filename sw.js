@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zinpos-pro-v6';
+const CACHE_NAME = 'zinpos-pro-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,16 +7,17 @@ const ASSETS_TO_CACHE = [
   '/css/layout.css',
   '/css/components.css',
   '/js/config/supabase.js',
-  '/js/ui/app.js',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
-  'https://unpkg.com/lucide@latest'
+  '/js/ui/app.js'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS_TO_CACHE))
-  );
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      try { await cache.addAll(ASSETS_TO_CACHE); } catch (_) {}
+      await self.skipWaiting();
+    } catch (_) {}
+  })());
 });
 
 self.addEventListener('activate', event => {
@@ -31,6 +32,22 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (url.origin !== self.location.origin) return;
+
+  const isHtml = event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/';
+  if (isHtml) {
+    event.respondWith(
+      fetch(event.request)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
