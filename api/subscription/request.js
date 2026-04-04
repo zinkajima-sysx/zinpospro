@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
         return;
     }
 
-    const amount = plan === 'monthly' ? 100000 : 700000;
+    const amount = plan === 'monthly' ? 65000 : 500000;
     const unique_code = Math.floor(Math.random() * 999) + 1;
     const total_amount = amount + unique_code;
 

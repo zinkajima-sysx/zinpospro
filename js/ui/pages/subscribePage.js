@@ -116,12 +116,12 @@ const subscribePage = {
                 <div class="grid grid-cols-2" style="gap:12px;">
                     <div class="card" style="padding:16px;border:1px solid var(--border);">
                         <div style="font-weight:900;font-size:14px;margin-bottom:6px;">1 Bulan</div>
-                        <div class="text-muted" style="font-size:12px;margin-bottom:10px;">Rp 100.000 / bulan</div>
+                        <div class="text-muted" style="font-size:12px;margin-bottom:10px;">Rp 65.000 / bulan</div>
                         <button class="btn btn-primary btn-sm" style="background:#1e1b4b;border-color:#1e1b4b;" onclick="subscribePage.choosePlan('monthly')">Pilih</button>
                     </div>
                     <div class="card" style="padding:16px;border:1px solid var(--border);">
                         <div style="font-weight:900;font-size:14px;margin-bottom:6px;">1 Tahun</div>
-                        <div class="text-muted" style="font-size:12px;margin-bottom:10px;">Rp 700.000 / tahun</div>
+                        <div class="text-muted" style="font-size:12px;margin-bottom:10px;">Rp 500.000 / tahun</div>
                         <button class="btn btn-primary btn-sm" style="background:#1e1b4b;border-color:#1e1b4b;" onclick="subscribePage.choosePlan('yearly')">Pilih</button>
                     </div>
                 </div>
@@ -134,7 +134,7 @@ const subscribePage = {
 
     renderTransferStep({ bankName, bankAccount, bankHolder, billingEmail }) {
         const plan = this.state.plan;
-        const amount = plan === 'monthly' ? 100000 : 700000;
+        const amount = plan === 'monthly' ? 65000 : 500000;
         return `
             <div class="card" style="padding:22px;margin-bottom:12px;">
                 <div class="flex-between" style="gap:10px;flex-wrap:wrap;margin-bottom:12px;">
