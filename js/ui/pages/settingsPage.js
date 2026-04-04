@@ -1335,35 +1335,49 @@ const settingsPage = {
 
     // --- STORE CONFIG ---
     renderStoreConfig() {
-        // Fetch from appConfig or mock
-        const store = window.appConfig.store || {
-            name: 'ZinPOS Pro Station',
-            address: 'Jl. Raya No. 123, Indonesia',
-            phone: '081234567890',
-            footer: 'Terima kasih telah berbelanja!'
-        };
+        const storeDb = window.authStore?.state?.storeProfile || {};
+        const storeLocal = window.appConfig?.store || {};
+        const idToko = window.authStore?.state?.id_toko || '';
+        const footer = storeLocal.footer || 'Terima kasih telah berbelanja!';
+        const namaToko = storeDb.nama_toko || storeLocal.name || '';
+        const alamat = storeDb.alamat || storeLocal.address || '';
+        const noTlp = storeDb.no_tlp || storeLocal.phone || '';
+        const email = storeDb.email || '';
+        const owner = storeDb.owner || '';
 
         return `
             <h2 style="font-size: 20px; margin-bottom: 24px;">Informasi Toko</h2>
             <div class="card" style="max-width: 600px; padding: 32px;">
                 <form id="store-form">
                     <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">ID Toko</label>
+                        <input type="text" name="id_toko" class="search-input" style="padding-left: 16px;" value="${idToko}" disabled>
+                    </div>
+                    <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Nama Toko</label>
-                        <input type="text" name="name" class="search-input" style="padding-left: 16px;" value="${store.name}" required>
+                        <input type="text" name="nama_toko" class="search-input" style="padding-left: 16px;" value="${namaToko}" required>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Nama Pemilik</label>
+                        <input type="text" name="owner" class="search-input" style="padding-left: 16px;" value="${owner}">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Email</label>
+                        <input type="email" name="email" class="search-input" style="padding-left: 16px;" value="${email}">
                     </div>
                     <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Alamat</label>
-                        <textarea name="address" class="search-input" style="padding-left: 16px; min-height: 80px; padding-top: 12px;">${store.address}</textarea>
+                        <textarea name="alamat" class="search-input" style="padding-left: 16px; min-height: 80px; padding-top: 12px;">${alamat}</textarea>
                     </div>
                     <div style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Nomor HP / WhatsApp</label>
-                        <input type="text" name="phone" class="search-input" style="padding-left: 16px;" value="${store.phone}">
+                        <input type="text" name="no_tlp" class="search-input" style="padding-left: 16px;" value="${noTlp}">
                     </div>
                     <div style="margin-bottom: 32px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">Pesan Footer Nota</label>
-                        <input type="text" name="footer" class="search-input" style="padding-left: 16px;" value="${store.footer}">
+                        <input type="text" name="footer" class="search-input" style="padding-left: 16px;" value="${footer}">
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Simpan Perubahan</button>
+                    <button type="submit" id="store-submit" class="btn btn-primary" style="width: 100%;">Simpan Perubahan</button>
                 </form>
             </div>
         `;
@@ -1372,16 +1386,55 @@ const settingsPage = {
     setupStoreListener() {
         const form = document.getElementById('store-form');
         if (!form) return;
-        form.onsubmit = (e) => {
+        form.onsubmit = async (e) => {
             e.preventDefault();
-            const config = {
-                name: form.name.value,
-                address: form.address.value,
-                phone: form.phone.value,
-                footer: form.footer.value
-            };
-            window.appConfig.saveStoreConfig(config);
-            window.appStore.addNotification('Pengaturan toko disimpan', 'success');
+            const btn = document.getElementById('store-submit');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Menyimpan...';
+            }
+
+            try {
+                const id_toko = window.authStore?.state?.id_toko;
+                if (!id_toko) throw new Error('ID toko tidak ditemukan');
+
+                const payload = {
+                    nama_toko: form.nama_toko.value,
+                    alamat: form.alamat.value,
+                    no_tlp: form.no_tlp.value,
+                    email: form.email.value,
+                    owner: form.owner.value
+                };
+
+                const { error } = await window.supabase
+                    .from('settings')
+                    .update(payload)
+                    .eq('id_toko', id_toko);
+                if (error) throw error;
+
+                const local = window.appConfig?.store || {};
+                window.appConfig.saveStoreConfig({
+                    ...local,
+                    name: payload.nama_toko,
+                    address: payload.alamat,
+                    phone: payload.no_tlp,
+                    footer: form.footer.value
+                });
+
+                if (window.authStore?.refreshStoreProfile) {
+                    await window.authStore.refreshStoreProfile();
+                }
+
+                window.appStore.addNotification('Informasi toko berhasil disimpan', 'success');
+            } catch (err) {
+                console.error(err);
+                window.appStore.addNotification('Gagal menyimpan informasi toko', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Simpan Perubahan';
+                }
+            }
         };
     },
 

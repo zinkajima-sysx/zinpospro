@@ -9,6 +9,7 @@ const authStore = {
         userName: null,
         entitasId: null,
         id_toko: null,
+        storeProfile: null,
         menuAccess: null, // null = belum load, array = sudah load
         loading: true
     },
@@ -46,6 +47,7 @@ const authStore = {
                     await supabase.rpc('set_current_toko', { p_id_toko: this.state.id_toko });
                 }
 
+                await this._loadStoreProfile();
                 await this._loadMenuAccess();
             } catch (e) {
                 localStorage.removeItem('zinpos_user');
@@ -83,6 +85,7 @@ const authStore = {
         // Set RLS context di Supabase agar isolasi per toko aktif
         await supabase.rpc('set_current_toko', { p_id_toko: this.state.id_toko });
 
+        await this._loadStoreProfile();
         await this._loadMenuAccess();
         
         this.notify();
@@ -95,8 +98,14 @@ const authStore = {
         this.state.userName    = null;
         this.state.entitasId   = null;
         this.state.id_toko     = null;
+        this.state.storeProfile = null;
         this.state.menuAccess  = null;
         localStorage.removeItem('zinpos_user');
+        this.notify();
+    },
+
+    async refreshStoreProfile() {
+        await this._loadStoreProfile();
         this.notify();
     },
 
@@ -116,6 +125,37 @@ const authStore = {
         } catch (e) {
             console.error('menuAccess load error:', e);
             this.state.menuAccess = null;
+        }
+    },
+
+    async _loadStoreProfile() {
+        try {
+            const id_toko = this.state.id_toko;
+            if (!id_toko) return;
+
+            const { data, error } = await window.supabase
+                .from('settings')
+                .select('id_toko, nama_toko, alamat, no_tlp, email, owner')
+                .eq('id_toko', id_toko)
+                .maybeSingle();
+            if (error) throw error;
+            if (!data) return;
+
+            this.state.storeProfile = data;
+
+            const local = window.appConfig?.store || {};
+            const footer = local.footer || 'Terima kasih telah berbelanja!';
+            const merged = {
+                name: data.nama_toko || local.name || 'ZinPOS Pro',
+                address: data.alamat || local.address || '',
+                phone: data.no_tlp || local.phone || '',
+                footer
+            };
+            if (window.appConfig?.saveStoreConfig) {
+                window.appConfig.saveStoreConfig(merged);
+            }
+        } catch (e) {
+            console.error('storeProfile load error:', e);
         }
     },
 
