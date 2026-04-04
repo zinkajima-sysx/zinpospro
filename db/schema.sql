@@ -33,6 +33,30 @@ create table if not exists admin_audit_logs (
     created_at timestamptz default now()
 );
 
+create table if not exists subscription_requests (
+    id bigserial primary key,
+    id_toko uuid references settings(id_toko) on delete cascade,
+    toko_name text,
+    owner text,
+    email text,
+    plan text not null,
+    amount integer not null,
+    unique_code integer,
+    total_amount integer not null,
+    bank_target text,
+    status text default 'pending',
+    transfer_name text,
+    transfer_date date,
+    admin_note text,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+alter table public.settings
+add column if not exists subscription_status text default 'active',
+add column if not exists plan text,
+add column if not exists paid_until timestamptz;
+
 do $$
 begin
     if not exists (

@@ -143,7 +143,7 @@ const authStore = {
             let error = null;
             ({ data, error } = await window.supabase
                 .from('settings')
-                .select('id_toko, nama_toko, alamat, no_tlp, email, owner, status')
+                .select('id_toko, nama_toko, alamat, no_tlp, email, owner, status, subscription_status, paid_until, plan')
                 .eq('id_toko', id_toko)
                 .maybeSingle());
             if (error && String(error.message || '').toLowerCase().includes('column')) {
@@ -179,6 +179,17 @@ const authStore = {
         } catch (e) {
             console.error('storeProfile load error:', e);
         }
+    },
+
+    isSubscriptionActive() {
+        const p = this.state.storeProfile || {};
+        const status = String(p.subscription_status || '').toLowerCase();
+        if (status !== 'active') return false;
+        const paidUntil = p.paid_until;
+        if (!paidUntil) return true;
+        const t = new Date(paidUntil).getTime();
+        if (Number.isNaN(t)) return false;
+        return t > Date.now();
     },
 
     isLoggedIn() {

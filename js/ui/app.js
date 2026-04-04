@@ -70,6 +70,12 @@ const App = {
             if (!authState.user && saState.token && window.appStore.state.activePage !== 'superadmin') {
                 window.appStore.setPage('superadmin');
             }
+
+            if (authState.user && window.authStore && !window.authStore.isSubscriptionActive()) {
+                if (window.appStore.state.activePage !== 'subscribe' && window.appStore.state.activePage !== 'settings') {
+                    window.appStore.setPage('subscribe');
+                }
+            }
             this.renderApp();
         };
 
@@ -115,6 +121,7 @@ const App = {
             case 'debt':       if (window.debtPage)     window.debtPage.render();     break;
             case 'report':     if (window.reportPage)   window.reportPage.render();   break;
             case 'settings':   if (window.settingsPage) window.settingsPage.render(); break;
+            case 'subscribe':  if (window.subscribePage) window.subscribePage.render(); break;
             case 'superadmin': if (window.superAdminPage) window.superAdminPage.render(); break;
             default: mainContent.innerHTML = `<div class="page-container"><h1>Halaman tidak ditemukan</h1></div>`;
         }

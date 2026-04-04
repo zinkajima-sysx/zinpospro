@@ -185,7 +185,7 @@ const registerPage = {
         btn.textContent = 'Mendaftarkan...';
 
         try {
-            await window.registerAPI.registerToko({
+            const result = await window.registerAPI.registerToko({
                 nama_toko: document.getElementById('reg-nama-toko').value.trim(),
                 owner:     document.getElementById('reg-owner').value.trim(),
                 no_tlp:    document.getElementById('reg-no-tlp').value.trim(),
@@ -196,7 +196,11 @@ const registerPage = {
             });
 
             // Tampilkan sukses lalu redirect ke login
-            this.showSuccess(username);
+            const id_toko = result?.toko?.id_toko || null;
+            if (id_toko) {
+                localStorage.setItem('zinpos_last_registered', JSON.stringify({ id_toko, username, created_at: new Date().toISOString() }));
+            }
+            this.showSuccess(username, id_toko);
 
         } catch (err) {
             console.error(err);
@@ -210,7 +214,7 @@ const registerPage = {
         }
     },
 
-    showSuccess(username) {
+    showSuccess(username, id_toko) {
         const app = document.getElementById('app');
         app.innerHTML = `
             <div style="min-height:100dvh;background:var(--bg-main);display:flex;align-items:center;justify-content:center;padding:24px;">
@@ -222,10 +226,16 @@ const registerPage = {
                     <p class="text-muted" style="font-size:13px;margin-bottom:24px;">
                         Akun admin telah dibuat. Silakan login dengan username <strong>${username}</strong>
                     </p>
-                    <button class="btn btn-primary" style="width:100%;height:48px;background:#1e1b4b;border-color:#1e1b4b;"
-                        onclick="registerPage.goLogin()">
-                        Masuk Sekarang
-                    </button>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <button class="btn btn-primary" style="width:100%;height:48px;background:#1e1b4b;border-color:#1e1b4b;"
+                            onclick="subscribePage.render()">
+                            Lanjut Pembayaran
+                        </button>
+                        <button class="btn btn-outline" style="width:100%;height:48px;"
+                            onclick="registerPage.goLogin()">
+                            Masuk Sekarang
+                        </button>
+                    </div>
                 </div>
             </div>
         `;

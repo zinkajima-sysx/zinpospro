@@ -6,7 +6,10 @@ const superAdminPage = {
         includeDeleted: false,
         rows: [],
         page: 1,
-        perPage: 10
+        perPage: 10,
+        subTab: 'stores',
+        payStatus: 'submitted',
+        payRows: []
     },
     _initialized: false,
     _loadingRequest: false,
@@ -78,6 +81,19 @@ const superAdminPage = {
     },
 
     renderPanel() {
+        const subTab = this.state.subTab || 'stores';
+        const tabBtn = (id, label) => `
+            <button class="btn btn-sm ${subTab === id ? 'btn-primary' : 'btn-outline'}" style="height:36px;${subTab === id ? 'background:#1e1b4b;border-color:#1e1b4b;' : ''}"
+                onclick="superAdminPage.switchSubTab('${id}')">${label}</button>
+        `;
+
+        const tabs = `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                ${tabBtn('stores', 'Toko')}
+                ${tabBtn('payments', 'Pembayaran')}
+            </div>
+        `;
+
         const rows = this.state.rows || [];
         const page = Math.max(1, parseInt(this.state.page || 1, 10));
         const perPage = Math.max(5, parseInt(this.state.perPage || 10, 10));
@@ -88,6 +104,25 @@ const superAdminPage = {
         const end = Math.min(total, start + perPage);
         const pageRows = rows.slice(start, end);
         const loading = this.state.loading;
+        if (subTab === 'payments') {
+            return `
+                <div class="page-container" style="max-width:1200px;">
+                    <div class="flex-between" style="margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <h1 style="font-size:22px;font-weight:900;margin-bottom:2px;">Super Admin</h1>
+                            <p class="text-muted" style="font-size:13px;">Kelola aktivasi, suspend, dan penghapusan toko</p>
+                        </div>
+                        <button class="btn btn-outline btn-sm" onclick="superAdminPage.logout()" style="gap:6px;">
+                            <i data-lucide="log-out" style="width:15px;height:15px;color:var(--danger);"></i>
+                            <span style="color:var(--danger);">Keluar</span>
+                        </button>
+                    </div>
+                    ${tabs}
+                    ${this.renderPayments()}
+                </div>
+            `;
+        }
+
         return `
             <div class="page-container" style="max-width:1200px;">
                 <div class="flex-between" style="margin-bottom:18px;flex-wrap:wrap;gap:12px;">
@@ -100,6 +135,7 @@ const superAdminPage = {
                         <span style="color:var(--danger);">Keluar</span>
                     </button>
                 </div>
+                ${tabs}
 
                 <div class="card" style="padding:16px 16px 10px;margin-bottom:12px;">
                     <div class="flex" style="gap:10px;flex-wrap:wrap;align-items:center;">
@@ -248,6 +284,94 @@ const superAdminPage = {
         };
     },
 
+    renderPayments() {
+        const loading = this.state.loading;
+        const rows = this.state.payRows || [];
+        const status = this.state.payStatus || 'submitted';
+        return `
+            <div class="card" style="padding:16px 16px 10px;margin-bottom:12px;">
+                <div class="flex" style="gap:10px;flex-wrap:wrap;align-items:center;">
+                    <select id="sa-pay-status" class="search-input" style="width:200px;padding-left:12px;">
+                        <option value="submitted" ${status === 'submitted' ? 'selected' : ''}>Submitted</option>
+                        <option value="approved" ${status === 'approved' ? 'selected' : ''}>Approved</option>
+                        <option value="rejected" ${status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                        <option value="all" ${status === 'all' ? 'selected' : ''}>All</option>
+                    </select>
+                    <button id="sa-pay-refresh" class="btn btn-outline btn-sm" style="gap:6px;">
+                        <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+                        Refresh
+                    </button>
+                    <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">
+                        ${loading ? 'Memuat...' : `${rows.length} pembayaran`}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding:0;overflow:hidden;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama Toko</th>
+                                <th class="table-hide-mobile">Paket</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th style="text-align:right;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.length ? rows.map(r => this.renderPaymentRow(r)).join('') : `
+                                <tr><td colspan="6" style="padding:18px;color:var(--text-muted);font-size:13px;">Tidak ada data</td></tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    },
+
+    renderPaymentRow(r) {
+        const badge = (s) => {
+            const v = String(s || 'pending').toLowerCase();
+            if (v === 'approved') return `<span style="font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;background:#dcfce7;color:#16a34a;">APPROVED</span>`;
+            if (v === 'rejected') return `<span style="font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;background:#fee2e2;color:#ef4444;">REJECTED</span>`;
+            return `<span style="font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;background:#e0e7ff;color:#4f46e5;">SUBMITTED</span>`;
+        };
+
+        const total = r.total_amount ? `Rp ${Number(r.total_amount).toLocaleString('id-ID')}` : '-';
+        const plan = r.plan === 'monthly' ? '1 Bulan' : r.plan === 'yearly' ? '1 Tahun' : (r.plan || '-');
+
+        const actions = String(r.status || '').toLowerCase() === 'submitted'
+            ? `
+                <button class="btn btn-primary btn-sm" onclick="superAdminPage.approvePayment(${r.id})" style="background:#1e1b4b;border-color:#1e1b4b;">Approve</button>
+                <button class="btn btn-outline btn-sm btn-warning" onclick="superAdminPage.rejectPayment(${r.id})">Reject</button>
+              `
+            : `
+                <button class="btn btn-outline btn-sm" onclick="superAdminPage.viewPayment(${r.id})">Detail</button>
+              `;
+
+        return `
+            <tr>
+                <td style="font-weight:900;">REQ-${this.escape(r.id)}</td>
+                <td>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <span style="font-weight:900;">${this.escape(r.toko_name || '-')}</span>
+                        <span class="text-muted" style="font-size:11px;">${this.escape(r.id_toko || '')}</span>
+                    </div>
+                </td>
+                <td class="table-hide-mobile">${this.escape(plan)}</td>
+                <td style="font-weight:900;">${this.escape(total)}</td>
+                <td>${badge(r.status)}</td>
+                <td style="text-align:right;">
+                    <div class="flex" style="justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+                        ${actions}
+                    </div>
+                </td>
+            </tr>
+        `;
+    },
+
     setupPanel() {
         const q = document.getElementById('sa-q');
         const status = document.getElementById('sa-status');
@@ -255,12 +379,17 @@ const superAdminPage = {
         const refresh = document.getElementById('sa-refresh');
         const perpage = document.getElementById('sa-perpage');
         const exportBtn = document.getElementById('sa-export');
+        const payStatus = document.getElementById('sa-pay-status');
+        const payRefresh = document.getElementById('sa-pay-refresh');
 
-        if (status) status.onchange = () => { this.state.status = status.value; this.load(); };
-        if (includeDeleted) includeDeleted.onchange = () => { this.state.includeDeleted = includeDeleted.checked; this.load(); };
+        if (status) status.onchange = () => { this.state.status = status.value; this.state.page = 1; this.load(); };
+        if (includeDeleted) includeDeleted.onchange = () => { this.state.includeDeleted = includeDeleted.checked; this.state.page = 1; this.load(); };
         if (refresh) refresh.onclick = () => this.load();
         if (perpage) perpage.onchange = () => { this.state.perPage = parseInt(perpage.value, 10) || 10; this.state.page = 1; this.render({ skipLoad: true }); };
         if (exportBtn) exportBtn.onclick = () => this.exportCsv();
+
+        if (payStatus) payStatus.onchange = () => { this.state.payStatus = payStatus.value; this.loadPayments(); };
+        if (payRefresh) payRefresh.onclick = () => this.loadPayments();
 
         if (q) {
             let t = null;
@@ -293,6 +422,76 @@ const superAdminPage = {
             this._loadingRequest = false;
             this.render({ skipLoad: true });
         }
+    },
+
+    async loadPayments() {
+        if (this._loadingRequest) return;
+        this._loadingRequest = true;
+        this.state.loading = true;
+        this.render({ skipLoad: true });
+        try {
+            const rows = await window.superAdminAPI.listSubscriptionRequests({ status: this.state.payStatus, limit: 100 });
+            this.state.payRows = rows;
+        } catch (err) {
+            console.error(err);
+            showToast(err.message || 'Gagal memuat pembayaran', 'error');
+            this.state.payRows = [];
+        } finally {
+            this.state.loading = false;
+            this._loadingRequest = false;
+            this.render({ skipLoad: true });
+        }
+    },
+
+    switchSubTab(tab) {
+        this.state.subTab = tab;
+        this.render({ skipLoad: true });
+        if (tab === 'payments') this.loadPayments();
+    },
+
+    async approvePayment(id) {
+        const note = await this.promptReason('Approve', 'Catatan admin (opsional):');
+        if (note === null) return;
+        try {
+            await window.superAdminAPI.decideSubscriptionRequest(String(id), 'approve', note || '');
+            showToast('Pembayaran di-approve. Langganan aktif.', 'success');
+            await this.loadPayments();
+        } catch (err) {
+            console.error(err);
+            showToast(err.message || 'Gagal approve', 'error');
+        }
+    },
+
+    async rejectPayment(id) {
+        const note = await this.promptReason('Reject', 'Alasan reject (opsional):');
+        if (note === null) return;
+        try {
+            await window.superAdminAPI.decideSubscriptionRequest(String(id), 'reject', note || '');
+            showToast('Pembayaran di-reject', 'success');
+            await this.loadPayments();
+        } catch (err) {
+            console.error(err);
+            showToast(err.message || 'Gagal reject', 'error');
+        }
+    },
+
+    viewPayment(id) {
+        const row = (this.state.payRows || []).find(x => String(x.id) === String(id));
+        if (!row) return;
+        const total = row.total_amount ? `Rp ${Number(row.total_amount).toLocaleString('id-ID')}` : '-';
+        const plan = row.plan === 'monthly' ? '1 Bulan' : row.plan === 'yearly' ? '1 Tahun' : (row.plan || '-');
+        const lines = [
+            `REQ-${row.id}`,
+            `Nama Toko: ${row.toko_name || '-'}`,
+            `ID Toko: ${row.id_toko || '-'}`,
+            `Paket: ${plan}`,
+            `Total: ${total}`,
+            `Nama Pengirim: ${row.transfer_name || '-'}`,
+            `Tanggal Transfer: ${row.transfer_date || '-'}`,
+            `Status: ${row.status || '-'}`,
+            row.admin_note ? `Catatan Admin: ${row.admin_note}` : ''
+        ].filter(Boolean).join('\n');
+        alert(lines);
     },
 
     async setStatus(id_toko, status) {

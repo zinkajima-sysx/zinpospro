@@ -55,6 +55,12 @@ window.supabaseReady = (async () => {
             SUPABASE_URL: supabaseUrl,
             SUPABASE_KEY: supabaseAnonKey,
             SUPABASE_PROJECT_REF: projectRef,
+            BILLING: {
+                email: cfg?.BILLING_EMAIL || '',
+                bankName: cfg?.BILLING_BANK_NAME || '',
+                bankAccount: cfg?.BILLING_BANK_ACCOUNT || '',
+                bankHolder: cfg?.BILLING_BANK_HOLDER || ''
+            },
             APP: {
                 DEFAULT_TOKO: defaultToko
             }

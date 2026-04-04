@@ -33,9 +33,23 @@ const registerAPI = {
         const id_toko = generateUuid();
 
         // 2. Insert toko baru ke settings
-        const { error: tokoErr } = await supabase
+        let tokoErr = null;
+        ({ error: tokoErr } = await supabase
             .from('settings')
-            .insert([{ id_toko, nama_toko, alamat, no_tlp, email, owner }]);
+            .insert([{
+                id_toko,
+                nama_toko,
+                alamat,
+                no_tlp,
+                email,
+                owner,
+                subscription_status: 'pending_payment'
+            }]));
+        if (tokoErr && String(tokoErr.message || tokoErr.details || '').toLowerCase().includes('subscription_status')) {
+            ({ error: tokoErr } = await supabase
+                .from('settings')
+                .insert([{ id_toko, nama_toko, alamat, no_tlp, email, owner }]));
+        }
         if (tokoErr) throw formatRlsError(tokoErr, 'settings');
 
         // 3. Insert entitas default: Admin & Staff

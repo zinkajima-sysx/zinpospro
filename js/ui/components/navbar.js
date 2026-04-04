@@ -31,6 +31,7 @@ const Navbar = {
             { id: 'expense',   label: 'Biaya',     icon: 'calculator' },
             { id: 'debt',      label: 'Piutang',   icon: 'wallet' },
             { id: 'report',    label: 'Laporan',   icon: 'bar-chart-2' },
+            { id: 'subscribe', label: 'Paket',     icon: 'badge-check' },
             { id: 'settings',  label: 'Master',    icon: 'settings' },
         ];
 
@@ -40,6 +41,17 @@ const Navbar = {
             : allItems;
 
         const activePage = window.appStore.state.activePage;
+
+        if (isUserLoggedIn && window.authStore && !window.authStore.isSubscriptionActive()) {
+            const limited = menuItems.filter(i => i.id === 'subscribe' || i.id === 'settings');
+            return limited.map(item => `
+                <button class="nav-item ${activePage === item.id ? 'active' : ''}" 
+                        onclick="window.appStore.setPage('${item.id}')">
+                    <i data-lucide="${item.icon}"></i>
+                    <span>${item.label}</span>
+                </button>
+            `).join('');
+        }
 
         return menuItems.map(item => `
             <button class="nav-item ${activePage === item.id ? 'active' : ''}" 

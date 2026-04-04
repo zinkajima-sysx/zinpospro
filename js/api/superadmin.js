@@ -85,6 +85,40 @@ const superAdminAPI = {
             throw new Error((json.error || 'Gagal memuat audit log') + detail);
         }
         return json.data || [];
+    },
+
+    async listSubscriptionRequests({ status = 'submitted', limit = 50 } = {}) {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const params = new URLSearchParams({ status, limit: String(limit) });
+        const res = await fetch(`/api/superadmin/subscriptions?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memuat pembayaran') + detail);
+        }
+        return json.data || [];
+    },
+
+    async decideSubscriptionRequest(id, action, admin_note = '') {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const res = await fetch('/api/superadmin/subscriptions', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ id, action, admin_note })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memproses pembayaran') + detail);
+        }
+        return json.data;
     }
 };
 
