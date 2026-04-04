@@ -28,7 +28,10 @@ const superAdminAPI = {
             throw new Error('Gagal menghubungi endpoint superadmin. Pastikan deployment Vercel sudah terbaru dan env SUPABASE_SERVICE_ROLE_KEY sudah di-set.');
         }
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Gagal memuat data toko');
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memuat data toko') + detail);
+        }
         return json.data || [];
     },
 
@@ -44,7 +47,10 @@ const superAdminAPI = {
             body: JSON.stringify({ id_toko, status })
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Gagal mengubah status');
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal mengubah status') + detail);
+        }
         return json.data;
     },
 
@@ -60,7 +66,10 @@ const superAdminAPI = {
             body: JSON.stringify({ id_toko })
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || 'Gagal menghapus toko');
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal menghapus toko') + detail);
+        }
         return json.data;
     }
 };
