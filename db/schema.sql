@@ -18,6 +18,23 @@ create table settings (
     created_at timestamptz default now()
 );
 
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'settings'
+          and policyname = 'settings_insert_public'
+    ) then
+        create policy settings_insert_public
+        on public.settings
+        for insert
+        to anon, authenticated
+        with check (true);
+    end if;
+end $$;
+
 -- =====================================================
 -- ENTITAS (ROLE USER)
 -- =====================================================

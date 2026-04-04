@@ -3,36 +3,66 @@
  * Supabase Configuration
  */
 
-const CONFIG = {
-    SUPABASE_URL: "https://pgopeapgcwoegdnbabgi.supabase.co",
-    SUPABASE_KEY: "sb_publishable_7_pwETDKQcpcTr4Hw1JZzg_pHkKh3-x",
-    APP: {
-        DEFAULT_TOKO: "00000000-0000-0000-0000-000000000001"
-    }
-};
-
 let supabaseClient = null;
 
-function initSupabase() {
-    if (!window.supabase) {
-        console.error("Supabase SDK not loaded");
-        return;
+window.supabaseReady = (async () => {
+    const sdk = window.supabase;
+    if (!sdk || typeof sdk.createClient !== 'function') {
+        throw new Error('Supabase SDK not loaded');
     }
 
     try {
-        supabaseClient = window.supabase.createClient(
-            CONFIG.SUPABASE_URL,
-            CONFIG.SUPABASE_KEY
-        );
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const defaultTokoFallback = "00000000-0000-0000-0000-000000000001";
+
+        let cfg = null;
+        try {
+            const res = await fetch('/api/config', { cache: 'no-store' });
+            if (!res.ok) throw new Error(`Config endpoint not available (${res.status})`);
+            cfg = await res.json();
+            localStorage.setItem('zinpos_runtime_config', JSON.stringify(cfg));
+        } catch (_) {
+            const cached = localStorage.getItem('zinpos_runtime_config');
+            cfg = cached ? JSON.parse(cached) : null;
+        }
+        if (!cfg) throw new Error('Config endpoint not available and no cached config found');
+
+        const supabaseUrl = cfg?.SUPABASE_URL;
+        const supabaseAnonKey = cfg?.SUPABASE_ANON_KEY;
+        if (!supabaseUrl || !supabaseAnonKey) {
+            throw new Error('Supabase config missing (SUPABASE_URL / SUPABASE_ANON_KEY)');
+        }
+
+        let projectRef = null;
+        try {
+            const host = new URL(supabaseUrl).host;
+            projectRef = host.split('.')[0] || null;
+        } catch (_) {
+            projectRef = null;
+        }
+
+        let defaultToko = cfg?.DEFAULT_TOKO;
+        if (typeof defaultToko !== 'string' || !uuidRegex.test(defaultToko)) {
+            defaultToko = defaultTokoFallback;
+        }
+
+        const CONFIG = {
+            SUPABASE_URL: supabaseUrl,
+            SUPABASE_KEY: supabaseAnonKey,
+            SUPABASE_PROJECT_REF: projectRef,
+            APP: {
+                DEFAULT_TOKO: defaultToko
+            }
+        };
+
+        supabaseClient = sdk.createClient(supabaseUrl, supabaseAnonKey);
 
         // Set window globals for non-module scripts
         window.supabase = supabaseClient;
         window.CONFIG = CONFIG;
-
-        console.log("Supabase connected");
+        return supabaseClient;
     } catch (error) {
-        console.error("Supabase initialization failed:", error);
+        console.error('Supabase initialization failed:', error);
+        throw error;
     }
-}
-
-initSupabase();
+})();
