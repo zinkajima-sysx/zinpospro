@@ -27,6 +27,21 @@ const App = {
                 }
                 return;
             }
+        } else {
+            const app = document.getElementById('app');
+            if (app) {
+                app.innerHTML = `
+                    <div style="min-height:100dvh;background:var(--bg-main);display:flex;align-items:center;justify-content:center;padding:24px;">
+                        <div class="card" style="max-width:520px;width:100%;padding:28px;">
+                            <h2 style="font-size:18px;font-weight:800;margin-bottom:10px;">Konfigurasi belum siap</h2>
+                            <p class="text-muted" style="font-size:13px;line-height:1.6;margin-bottom:0;">
+                                Supabase belum terinisialisasi. Pastikan file <strong>js/config/supabase.js</strong> termuat dan tidak error.
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+            return;
         }
         const rerender = () => {
             const authState = window.authStore.state;

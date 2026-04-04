@@ -6,10 +6,15 @@
 let supabaseClient = null;
 
 window.supabaseReady = (async () => {
-    const sdk = window.supabase;
-    if (!sdk || typeof sdk.createClient !== 'function') {
-        throw new Error('Supabase SDK not loaded');
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        window.supabaseSdk = window.supabase;
     }
+    const sdk = (window.supabase && typeof window.supabase.createClient === 'function')
+        ? window.supabase
+        : (window.supabaseSdk && typeof window.supabaseSdk.createClient === 'function')
+            ? window.supabaseSdk
+            : null;
+    if (!sdk) throw new Error('Supabase SDK not loaded');
 
     try {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,6 +64,7 @@ window.supabaseReady = (async () => {
 
         // Set window globals for non-module scripts
         window.supabase = supabaseClient;
+        window.supabaseClient = supabaseClient;
         window.CONFIG = CONFIG;
         return supabaseClient;
     } catch (error) {
