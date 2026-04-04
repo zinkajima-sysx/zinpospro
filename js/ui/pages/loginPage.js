@@ -47,6 +47,10 @@ const loginPage = {
                             Belum punya akun?
                             <a href="#" onclick="registerPage.render()" style="color:#1e1b4b;font-weight:700;">Daftar Toko Baru</a>
                         </p>
+                        <p style="margin-top:10px;font-size:13px;color:var(--text-muted);">
+                            Login sebagai
+                            <a href="#" onclick="superAdminPage.renderStandalone()" style="color:#1e1b4b;font-weight:700;">Super Admin</a>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -95,8 +99,14 @@ const loginPage = {
                 window.appStore.addNotification('Selamat datang kembali!', 'success');
             } catch (error) {
                 console.error('Login Error:', error);
-                window.appStore.addNotification('Username atau kata sandi salah', 'error');
-                document.getElementById('password-error').textContent = 'Kombinasi username/sandi salah';
+                const msg = error && error.message ? String(error.message) : '';
+                if (msg.toLowerCase().includes('toko berstatus')) {
+                    window.appStore.addNotification(msg, 'error');
+                    document.getElementById('password-error').textContent = msg;
+                } else {
+                    window.appStore.addNotification('Username atau kata sandi salah', 'error');
+                    document.getElementById('password-error').textContent = 'Kombinasi username/sandi salah';
+                }
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.querySelector('span').style.display = 'inline';

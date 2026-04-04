@@ -51,6 +51,12 @@ const authStore = {
                 await this._loadMenuAccess();
             } catch (e) {
                 localStorage.removeItem('zinpos_user');
+                this.state.user = null;
+                this.state.userRole = null;
+                this.state.userName = null;
+                this.state.entitasId = null;
+                this.state.id_toko = null;
+                this.state.storeProfile = null;
             }
         }
         
@@ -80,13 +86,13 @@ const authStore = {
         this.state.entitasId = data.entitas_id || null;
         this.state.id_toko   = data.id_toko || (window.CONFIG ? window.CONFIG.APP.DEFAULT_TOKO : 'ZIN001');
 
-        localStorage.setItem('zinpos_user', JSON.stringify(data));
-
         // Set RLS context di Supabase agar isolasi per toko aktif
         await supabase.rpc('set_current_toko', { p_id_toko: this.state.id_toko });
 
         await this._loadStoreProfile();
         await this._loadMenuAccess();
+
+        localStorage.setItem('zinpos_user', JSON.stringify(data));
         
         this.notify();
         return data;
@@ -133,15 +139,29 @@ const authStore = {
             const id_toko = this.state.id_toko;
             if (!id_toko) return;
 
-            const { data, error } = await window.supabase
+            let data = null;
+            let error = null;
+            ({ data, error } = await window.supabase
                 .from('settings')
-                .select('id_toko, nama_toko, alamat, no_tlp, email, owner')
+                .select('id_toko, nama_toko, alamat, no_tlp, email, owner, status')
                 .eq('id_toko', id_toko)
-                .maybeSingle();
+                .maybeSingle());
+            if (error && String(error.message || '').toLowerCase().includes('column')) {
+                ({ data, error } = await window.supabase
+                    .from('settings')
+                    .select('id_toko, nama_toko, alamat, no_tlp, email, owner')
+                    .eq('id_toko', id_toko)
+                    .maybeSingle());
+            }
             if (error) throw error;
             if (!data) return;
 
             this.state.storeProfile = data;
+
+            const status = data.status || 'active';
+            if (status !== 'active') {
+                throw new Error(`Toko berstatus "${status}"`);
+            }
 
             const local = window.appConfig?.store || {};
             const footer = local.footer || 'Terima kasih telah berbelanja!';

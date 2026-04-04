@@ -15,8 +15,42 @@ create table settings (
     no_tlp text,
     email text,
     owner text,
+    status text default 'active',
+    suspended_at timestamptz,
+    deleted_at timestamptz,
     created_at timestamptz default now()
 );
+
+do $$
+begin
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'settings'
+          and column_name = 'status'
+    ) then
+        alter table public.settings add column status text default 'active';
+    end if;
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'settings'
+          and column_name = 'suspended_at'
+    ) then
+        alter table public.settings add column suspended_at timestamptz;
+    end if;
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'settings'
+          and column_name = 'deleted_at'
+    ) then
+        alter table public.settings add column deleted_at timestamptz;
+    end if;
+end $$;
 
 do $$
 begin

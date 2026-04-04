@@ -28,14 +28,29 @@ const App = {
                 return;
             }
         }
-        window.authStore.subscribe((authState) => {
-            if (authState.loading) return;
-            if (!authState.user) this.renderLogin();
-            else this.renderApp();
-        });
+        const rerender = () => {
+            const authState = window.authStore.state;
+            const saState = window.superAdminStore ? window.superAdminStore.state : { loading: false, token: null };
+            if (authState.loading || saState.loading) return;
+            if (!authState.user && !saState.token) {
+                this.renderLogin();
+                return;
+            }
+
+            if (!authState.user && saState.token && window.appStore.state.activePage !== 'superadmin') {
+                window.appStore.setPage('superadmin');
+            }
+            this.renderApp();
+        };
+
+        window.authStore.subscribe(() => rerender());
+        if (window.superAdminStore) window.superAdminStore.subscribe(() => rerender());
+
+        if (window.superAdminStore) await window.superAdminStore.init();
         await window.authStore.init();
         const loader = document.getElementById('page-loader');
         if (loader) loader.style.display = 'none';
+        rerender();
     },
 
     renderLogin() {
@@ -70,6 +85,7 @@ const App = {
             case 'debt':       if (window.debtPage)     window.debtPage.render();     break;
             case 'report':     if (window.reportPage)   window.reportPage.render();   break;
             case 'settings':   if (window.settingsPage) window.settingsPage.render(); break;
+            case 'superadmin': if (window.superAdminPage) window.superAdminPage.render(); break;
             default: mainContent.innerHTML = `<div class="page-container"><h1>Halaman tidak ditemukan</h1></div>`;
         }
         if (window.lucide) window.lucide.createIcons();

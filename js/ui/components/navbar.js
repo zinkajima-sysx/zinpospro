@@ -3,6 +3,23 @@
  */
 const Navbar = {
     render() {
+        const isSuperAdmin = window.superAdminStore && window.superAdminStore.isLoggedIn && window.superAdminStore.isLoggedIn();
+        const isUserLoggedIn = !!window.authStore.state.user;
+
+        if (isSuperAdmin && !isUserLoggedIn) {
+            const activePage = window.appStore.state.activePage;
+            const items = [
+                { id: 'superadmin', label: 'Admin', icon: 'shield' }
+            ];
+            return items.map(item => `
+                <button class="nav-item ${activePage === item.id ? 'active' : ''}" 
+                        onclick="window.appStore.setPage('${item.id}')">
+                    <i data-lucide="${item.icon}"></i>
+                    <span>${item.label}</span>
+                </button>
+            `).join('');
+        }
+
         const userRole    = window.authStore.state.userRole;
         const entitasId   = window.authStore.state.entitasId;
         const accessCache = window.authStore.state.menuAccess || null; // null = belum load, [] = sudah load
