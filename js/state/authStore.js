@@ -149,6 +149,8 @@ const authStore = {
                 name: data.nama_toko || local.name || 'ZinPOS Pro',
                 address: data.alamat || local.address || '',
                 phone: data.no_tlp || local.phone || '',
+                owner: data.owner || local.owner || '',
+                email: data.email || local.email || '',
                 footer
             };
             if (window.appConfig?.saveStoreConfig) {

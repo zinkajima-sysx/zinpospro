@@ -16,6 +16,8 @@ const appConfig = {
         name: 'ZinPOS Pro Station',
         address: 'Jl. Raya No. 123, Indonesia',
         phone: '081234567890',
+        owner: '',
+        email: '',
         footer: 'Terima kasih telah berbelanja!'
     },
 

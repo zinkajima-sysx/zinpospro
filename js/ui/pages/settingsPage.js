@@ -1342,8 +1342,8 @@ const settingsPage = {
         const namaToko = storeDb.nama_toko || storeLocal.name || '';
         const alamat = storeDb.alamat || storeLocal.address || '';
         const noTlp = storeDb.no_tlp || storeLocal.phone || '';
-        const email = storeDb.email || '';
-        const owner = storeDb.owner || '';
+        const email = storeDb.email || storeLocal.email || '';
+        const owner = storeDb.owner || storeLocal.owner || '';
 
         return `
             <h2 style="font-size: 20px; margin-bottom: 24px;">Informasi Toko</h2>
@@ -1418,6 +1418,8 @@ const settingsPage = {
                     name: payload.nama_toko,
                     address: payload.alamat,
                     phone: payload.no_tlp,
+                    owner: payload.owner,
+                    email: payload.email,
                     footer: form.footer.value
                 });
 
@@ -1425,10 +1427,18 @@ const settingsPage = {
                     await window.authStore.refreshStoreProfile();
                 }
 
-                window.appStore.addNotification('Informasi toko berhasil disimpan', 'success');
+                if (window.authStore?.state?.storeProfile) {
+                    window.authStore.state.storeProfile = {
+                        ...window.authStore.state.storeProfile,
+                        ...payload
+                    };
+                    window.authStore.notify();
+                }
+
+                showToast('Informasi toko berhasil disimpan', 'success');
             } catch (err) {
                 console.error(err);
-                window.appStore.addNotification('Gagal menyimpan informasi toko', 'error');
+                showToast('Gagal menyimpan informasi toko', 'error');
             } finally {
                 if (btn) {
                     btn.disabled = false;
