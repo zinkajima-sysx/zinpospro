@@ -491,7 +491,7 @@ const superAdminPage = {
             `Status: ${row.status || '-'}`,
             row.admin_note ? `Catatan Admin: ${row.admin_note}` : ''
         ].filter(Boolean).join('\n');
-        alert(lines);
+        this.showTextModal(`Detail Pembayaran REQ-${row.id}`, lines);
     },
 
     async setStatus(id_toko, status) {
@@ -512,7 +512,13 @@ const superAdminPage = {
 
     async softDelete(id_toko) {
         try {
-            const ok = confirm('Hapus toko ini? Data tidak akan dihapus permanen, tapi status akan menjadi deleted.');
+            const ok = await showConfirm({
+                title: 'Hapus Toko',
+                message: 'Hapus toko ini? Data tidak akan dihapus permanen, tapi status akan menjadi deleted.',
+                confirmText: 'Ya, Hapus',
+                cancelText: 'Batal',
+                type: 'danger'
+            });
             if (!ok) return;
             const reason = await this.promptReason('Delete', 'Masukkan alasan delete (opsional):');
             if (reason === null) return;
@@ -523,6 +529,39 @@ const superAdminPage = {
             console.error(err);
             showToast(err.message || 'Gagal menghapus toko', 'error');
         }
+    },
+
+    showTextModal(title, text) {
+        if (this._modalOpen) return;
+        this._modalOpen = true;
+
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+        modal.style.background = 'rgba(15,23,42,.55)';
+        modal.style.zIndex = '9999';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.padding = '18px';
+        modal.innerHTML = `
+            <div class="card" style="width:100%;max-width:720px;max-height:85dvh;overflow:auto;padding:18px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+                    <div style="font-weight:900;font-size:16px;">${this.escape(title)}</div>
+                    <button class="btn btn-outline btn-sm" id="sa-text-close">Tutup</button>
+                </div>
+                <pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.7;background:#0b1220;color:#e2e8f0;padding:12px;border-radius:12px;overflow:auto;max-height:60dvh;">${this.escape(text)}</pre>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const close = () => {
+            modal.remove();
+            this._modalOpen = false;
+        };
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+        const btn = document.getElementById('sa-text-close');
+        if (btn) btn.onclick = close;
     },
 
     setPage(page) {
