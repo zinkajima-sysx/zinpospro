@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zinpos-pro-v16';
+const CACHE_NAME = 'zinpos-pro-v17';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -6,6 +6,8 @@ const ASSETS_TO_CACHE = [
   '/css/base.css',
   '/css/layout.css',
   '/css/components.css',
+  '/js/bootstrap.js',
+  '/js/sw-register.js',
   '/js/config/supabase.js',
   '/js/ui/app.js'
 ];
