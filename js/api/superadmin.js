@@ -154,6 +154,20 @@ const superAdminAPI = {
             throw new Error((json.error || 'Gagal reset password') + detail);
         }
         return json.data;
+    },
+
+    async getStats() {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const res = await fetch('/api/superadmin/stats', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memuat dashboard') + detail);
+        }
+        return json.data;
     }
 };
 

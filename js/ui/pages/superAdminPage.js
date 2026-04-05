@@ -7,9 +7,10 @@ const superAdminPage = {
         rows: [],
         page: 1,
         perPage: 10,
-        subTab: 'stores',
+        subTab: 'dashboard',
         payStatus: 'submitted',
-        payRows: []
+        payRows: [],
+        stats: null
     },
     _initialized: false,
     _loadingRequest: false,
@@ -31,7 +32,9 @@ const superAdminPage = {
         this.setupPanel();
         if (!opts.skipLoad && !this._initialized) {
             this._initialized = true;
-            this.load();
+            if ((this.state.subTab || 'dashboard') === 'payments') this.loadPayments();
+            else if ((this.state.subTab || 'dashboard') === 'stores') this.load();
+            else this.loadStats();
         }
         if (window.lucide) window.lucide.createIcons();
     },
@@ -89,6 +92,7 @@ const superAdminPage = {
 
         const tabs = `
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                ${tabBtn('dashboard', 'Dashboard')}
                 ${tabBtn('stores', 'Toko')}
                 ${tabBtn('payments', 'Pembayaran')}
             </div>
@@ -104,6 +108,30 @@ const superAdminPage = {
         const end = Math.min(total, start + perPage);
         const pageRows = rows.slice(start, end);
         const loading = this.state.loading;
+        if (subTab === 'dashboard') {
+            return `
+                <div class="page-container" style="max-width:1200px;">
+                    <div class="flex-between" style="margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <h1 style="font-size:22px;font-weight:900;margin-bottom:2px;">Super Admin</h1>
+                            <p class="text-muted" style="font-size:13px;">Ringkasan toko, pembayaran, dan pendapatan</p>
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <button class="btn btn-outline btn-sm" onclick="superAdminPage.loadStats()" style="gap:6px;">
+                                <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+                                Refresh
+                            </button>
+                            <button class="btn btn-outline btn-sm" onclick="superAdminPage.logout()" style="gap:6px;">
+                                <i data-lucide="log-out" style="width:15px;height:15px;color:var(--danger);"></i>
+                                <span style="color:var(--danger);">Keluar</span>
+                            </button>
+                        </div>
+                    </div>
+                    ${tabs}
+                    ${this.renderDashboard()}
+                </div>
+            `;
+        }
         if (subTab === 'payments') {
             return `
                 <div class="page-container" style="max-width:1200px;">
@@ -284,6 +312,116 @@ const superAdminPage = {
         };
     },
 
+    renderDashboard() {
+        const d = this.state.stats;
+        const loading = this.state.loading;
+        const c = d?.cards || {};
+        const revenue = typeof c.revenue_total === 'number' ? c.revenue_total : 0;
+
+        const card = (label, value) => `
+            <div class="card" style="padding:14px;border:1px solid var(--border);">
+                <div class="text-muted" style="font-size:12px;margin-bottom:6px;">${label}</div>
+                <div style="font-weight:900;font-size:18px;">${value}</div>
+            </div>
+        `;
+
+        const body = loading && !d
+            ? `<div class="card" style="padding:18px;color:var(--text-muted);font-size:13px;">Memuat dashboard...</div>`
+            : `
+                <div class="sa-grid-4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                    ${card('Toko Terdaftar', this.formatNumber(c.store_registered))}
+                    ${card('Toko Aktif (Approved)', this.formatNumber(c.store_approved))}
+                    ${card('Toko Pending Payment', this.formatNumber(c.store_pending_payment))}
+                    ${card('Pembayaran Submitted', this.formatNumber(c.pay_submitted))}
+                    ${card('Pembayaran + Bukti', this.formatNumber(c.pay_with_proof))}
+                    ${card('Langganan Bulanan', this.formatNumber(c.active_monthly))}
+                    ${card('Langganan Tahunan', this.formatNumber(c.active_yearly))}
+                    ${card('Total Pendapatan', `Rp ${this.formatNumber(revenue)}`)}
+                </div>
+
+                <div class="card" style="padding:16px;margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+                        <div>
+                            <div style="font-weight:900;">Perbandingan Langganan</div>
+                            <div class="text-muted" style="font-size:12px;">Approved per bulan (6 bulan terakhir)</div>
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-muted);">
+                            <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:999px;background:#4f46e5;"></span>Bulanan</span>
+                            <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:999px;background:#16a34a;"></span>Tahunan</span>
+                        </div>
+                    </div>
+                    ${this.renderLineChart(d?.chart)}
+                </div>
+            `;
+
+        return `
+            <style>
+                @media (max-width: 980px) {
+                    .sa-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+                }
+                @media (max-width: 520px) {
+                    .sa-grid-4 { grid-template-columns: 1fr !important; }
+                }
+            </style>
+            ${body}
+        `;
+    },
+
+    renderLineChart(chart) {
+        const labels = chart?.labels || [];
+        const monthly = chart?.monthly || [];
+        const yearly = chart?.yearly || [];
+        const n = Math.min(labels.length, monthly.length, yearly.length);
+        if (!n) {
+            return `<div class="text-muted" style="font-size:13px;">Belum ada data chart</div>`;
+        }
+
+        const w = 980;
+        const h = 220;
+        const padX = 36;
+        const padY = 26;
+        const innerW = w - padX * 2;
+        const innerH = h - padY * 2;
+
+        const maxVal = Math.max(1, ...monthly.slice(0, n), ...yearly.slice(0, n));
+        const x = (i) => padX + (n === 1 ? 0 : (innerW * i) / (n - 1));
+        const y = (v) => padY + (innerH * (1 - v / maxVal));
+
+        const linePath = (arr) => {
+            const pts = arr.slice(0, n).map((v, i) => `${x(i)},${y(v)}`);
+            return `M ${pts.join(' L ')}`;
+        };
+
+        const ticks = [0, Math.ceil(maxVal / 2), maxVal];
+        const gridLines = ticks.map(t => {
+            const yy = y(t);
+            return `<line x1="${padX}" y1="${yy}" x2="${w - padX}" y2="${yy}" stroke="rgba(148,163,184,0.25)" stroke-width="1" />`;
+        }).join('');
+
+        const yLabels = ticks.map(t => {
+            const yy = y(t);
+            return `<text x="10" y="${yy + 4}" font-size="11" fill="rgba(100,116,139,1)">${t}</text>`;
+        }).join('');
+
+        const xLabels = labels.slice(0, n).map((lab, i) => {
+            const xx = x(i);
+            const short = String(lab || '').slice(5);
+            return `<text x="${xx}" y="${h - 6}" text-anchor="middle" font-size="11" fill="rgba(100,116,139,1)">${short}</text>`;
+        }).join('');
+
+        return `
+            <div style="width:100%;overflow:auto;">
+                <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="min-width:680px;">
+                    ${gridLines}
+                    <path d="${linePath(monthly)}" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round" />
+                    <path d="${linePath(yearly)}" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" />
+                    ${yLabels}
+                    ${xLabels}
+                </svg>
+            </div>
+        `;
+    },
+
     renderPayments() {
         const loading = this.state.loading;
         const rows = this.state.payRows || [];
@@ -454,6 +592,32 @@ const superAdminPage = {
         this.state.subTab = tab;
         this.render({ skipLoad: true });
         if (tab === 'payments') this.loadPayments();
+        if (tab === 'stores') this.load();
+        if (tab === 'dashboard') this.loadStats();
+    },
+
+    async loadStats() {
+        if (this._loadingRequest) return;
+        this._loadingRequest = true;
+        this.state.loading = true;
+        this.render({ skipLoad: true });
+        try {
+            const data = await window.superAdminAPI.getStats();
+            this.state.stats = data;
+        } catch (err) {
+            console.error(err);
+            showToast(err.message || 'Gagal memuat dashboard', 'error');
+            this.state.stats = null;
+        } finally {
+            this.state.loading = false;
+            this._loadingRequest = false;
+            this.render({ skipLoad: true });
+        }
+    },
+
+    formatNumber(v) {
+        const n = typeof v === 'number' ? v : parseInt(v || 0, 10) || 0;
+        return n.toLocaleString('id-ID');
     },
 
     async approvePayment(id) {
