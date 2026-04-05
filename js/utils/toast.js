@@ -130,5 +130,66 @@ function showConfirm({ title = 'Konfirmasi', message, confirmText = 'Ya, Lanjutk
     });
 }
 
+function showAlert({ title = 'Info', message, okText = 'OK', type = 'info' }) {
+    return new Promise((resolve) => {
+        const colors = {
+            warning: { icon: 'alert-triangle', color: '#d97706', bg: '#fffbeb' },
+            danger:  { icon: 'trash-2',        color: '#dc2626', bg: '#fef2f2' },
+            info:    { icon: 'info',            color: '#2563eb', bg: '#eff6ff' },
+            success: { icon: 'check-circle',     color: '#16a34a', bg: '#f0fdf4' }
+        };
+        const c = colors[type] || colors.info;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position:fixed; inset:0; background:rgba(15,23,42,0.4);
+            backdrop-filter:blur(4px); z-index:99998;
+            display:flex; align-items:center; justify-content:center;
+            animation: toastIn 0.2s ease;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background:#fff; border-radius:20px; padding:28px;
+                max-width:520px; width:92%; box-shadow:0 20px 40px rgba(0,0,0,0.12);
+                animation: toastIn 0.25s cubic-bezier(0.4,0,0.2,1);
+                text-align:center;
+            ">
+                <div style="
+                    width:56px; height:56px; border-radius:50%;
+                    background:${c.bg}; display:flex; align-items:center;
+                    justify-content:center; margin:0 auto 18px;
+                ">
+                    <i data-lucide="${c.icon}" style="width:26px;height:26px;color:${c.color};"></i>
+                </div>
+                <h3 style="font-size:18px;margin-bottom:10px;">${title}</h3>
+                <p style="color:var(--text-muted);font-size:14px;margin-bottom:22px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${message}</p>
+                <button id="alert-ok" style="
+                    padding:12px 16px; border-radius:12px;
+                    border:none; background:${c.color}; color:#fff;
+                    font-size:14px; font-weight:700; cursor:pointer; min-width:120px;
+                ">${okText}</button>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        if (window.lucide) window.lucide.createIcons();
+
+        const close = () => {
+            overlay.style.animation = 'toastOut 0.2s ease forwards';
+            setTimeout(() => overlay.remove(), 200);
+            resolve(true);
+        };
+
+        overlay.querySelector('#alert-ok').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    });
+}
+
 window.showToast = showToast;
 window.showConfirm = showConfirm;
+window.showAlert = showAlert;
+
+window.alert = (message) => {
+    window.showAlert({ title: 'Info', message: String(message ?? '') });
+};

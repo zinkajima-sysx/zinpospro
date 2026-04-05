@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zinpos-pro-v11';
+const CACHE_NAME = 'zinpos-pro-v12';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
