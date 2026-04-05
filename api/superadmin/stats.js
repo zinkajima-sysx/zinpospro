@@ -67,8 +67,17 @@ module.exports = async (req, res) => {
     const storeApproved = activeStores.filter(isPaidActive).length;
     const storePendingPayment = activeStores.filter(s => String(s.subscription_status || '').toLowerCase() === 'pending_payment').length;
 
-    const paySubmitted = payRows.filter(p => String(p.status || '').toLowerCase() === 'submitted').length;
-    const payWithProof = payRows.filter(p => !!p.proof_url).length;
+    const distinctStoreCount = (rows) => {
+        const s = new Set();
+        for (const r of rows) {
+            const id = r && r.id_toko ? String(r.id_toko) : '';
+            if (id) s.add(id);
+        }
+        return s.size;
+    };
+
+    const paySubmitted = distinctStoreCount(payRows.filter(p => String(p.status || '').toLowerCase() === 'submitted'));
+    const payWithProof = distinctStoreCount(payRows.filter(p => !!p.proof_url));
     const revenue = payRows
         .filter(p => String(p.status || '').toLowerCase() === 'approved')
         .reduce((sum, p) => sum + (parseInt(p.total_amount || 0, 10) || 0), 0);
