@@ -609,6 +609,7 @@ const superAdminPage = {
         this._modalOpen = true;
         const row = (this.state.rows || []).find(x => String(x.id_toko) === String(id_toko));
         const logs = await (window.superAdminAPI?.getLogs ? window.superAdminAPI.getLogs(id_toko, 30).catch(() => []) : Promise.resolve([]));
+        const adminUser = await (window.superAdminAPI?.getStoreAdminUser ? window.superAdminAPI.getStoreAdminUser(id_toko).catch(() => null) : Promise.resolve(null));
 
         const modal = document.createElement('div');
         modal.id = 'sa-modal';
@@ -637,6 +638,27 @@ const superAdminPage = {
                         <div><div class="text-muted" style="font-size:11px;">Email</div><div style="font-weight:800;">${this.escape(row?.email || '-')}</div></div>
                         <div><div class="text-muted" style="font-size:11px;">No HP</div><div style="font-weight:800;">${this.escape(row?.no_tlp || '-')}</div></div>
                         <div><div class="text-muted" style="font-size:11px;">Dibuat</div><div style="font-weight:800;">${this.escape(this.formatDate(row?.created_at))}</div></div>
+                    </div>
+                </div>
+                <div class="card" style="padding:14px;margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:900;margin-bottom:6px;">Akun Admin</div>
+                            <div class="text-muted" style="font-size:12px;line-height:1.6;">
+                                Password lama tidak bisa ditampilkan. Gunakan Reset Password untuk membuat password baru sementara.
+                            </div>
+                        </div>
+                        <button class="btn btn-outline btn-sm btn-warning" id="sa-reset-pass">Reset Password</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+                        <div>
+                            <div class="text-muted" style="font-size:11px;">Username</div>
+                            <div style="font-weight:900;">${this.escape(adminUser?.username || '-')}</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size:11px;">Nama</div>
+                            <div style="font-weight:900;">${this.escape(adminUser?.nama_user || '-')}</div>
+                        </div>
                     </div>
                 </div>
                 <div class="card" style="padding:0;overflow:hidden;">
@@ -678,6 +700,32 @@ const superAdminPage = {
         modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
         const btn = document.getElementById('sa-modal-close');
         if (btn) btn.onclick = close;
+
+        const resetBtn = document.getElementById('sa-reset-pass');
+        if (resetBtn) {
+            resetBtn.onclick = async () => {
+                try {
+                    const ok = await showConfirm({
+                        title: 'Reset Password Admin',
+                        message: 'Password admin akan diubah. Berikan password baru ini ke pemilik toko. Lanjutkan?',
+                        confirmText: 'Reset',
+                        cancelText: 'Batal',
+                        type: 'danger'
+                    });
+                    if (!ok) return;
+
+                    const reason = await this.promptReason('Reset Password', 'Catatan/alasan reset (opsional):');
+                    if (reason === null) return;
+
+                    const data = await window.superAdminAPI.resetStoreAdminPassword(id_toko, reason || '');
+                    this.showTextModal('Password Baru (Sementara)', `Username: ${data.username}\nPassword: ${data.temp_password}`);
+                    showToast('Password berhasil direset', 'success');
+                } catch (e) {
+                    console.error(e);
+                    showToast(e.message || 'Gagal reset password', 'error');
+                }
+            };
+        }
     },
 
     promptReason(title, label) {

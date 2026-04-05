@@ -119,6 +119,41 @@ const superAdminAPI = {
             throw new Error((json.error || 'Gagal memproses pembayaran') + detail);
         }
         return json.data;
+    },
+
+    async getStoreAdminUser(id_toko) {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const params = new URLSearchParams({ id_toko });
+        const res = await fetch(`/api/superadmin/admin-user?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal memuat akun admin') + detail);
+        }
+        return json.data;
+    },
+
+    async resetStoreAdminPassword(id_toko, reason = '') {
+        const token = window.superAdminStore?.state?.token;
+        if (!token) throw new Error('Belum login superadmin');
+        const params = new URLSearchParams({ id_toko });
+        const res = await fetch(`/api/superadmin/admin-user?${params.toString()}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ reason })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = json.detail ? ` (${typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail)})` : '';
+            throw new Error((json.error || 'Gagal reset password') + detail);
+        }
+        return json.data;
     }
 };
 
