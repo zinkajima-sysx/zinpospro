@@ -342,12 +342,19 @@ const superAdminPage = {
         const total = r.total_amount ? `Rp ${Number(r.total_amount).toLocaleString('id-ID')}` : '-';
         const plan = r.plan === 'monthly' ? '1 Bulan' : r.plan === 'yearly' ? '1 Tahun' : (r.plan || '-');
 
+        const proofBtn = r.proof_url
+            ? `<button class="btn btn-outline btn-sm" onclick="superAdminPage.openProof('${this.escape(r.proof_url)}')">Bukti</button>`
+            : '';
+
         const actions = String(r.status || '').toLowerCase() === 'submitted'
             ? `
+                ${proofBtn}
+                <button class="btn btn-outline btn-sm" onclick="superAdminPage.viewPayment(${r.id})">Detail</button>
                 <button class="btn btn-primary btn-sm" onclick="superAdminPage.approvePayment(${r.id})" style="background:#1e1b4b;border-color:#1e1b4b;">Approve</button>
                 <button class="btn btn-outline btn-sm btn-warning" onclick="superAdminPage.rejectPayment(${r.id})">Reject</button>
               `
             : `
+                ${proofBtn}
                 <button class="btn btn-outline btn-sm" onclick="superAdminPage.viewPayment(${r.id})">Detail</button>
               `;
 
@@ -488,10 +495,19 @@ const superAdminPage = {
             `Total: ${total}`,
             `Nama Pengirim: ${row.transfer_name || '-'}`,
             `Tanggal Transfer: ${row.transfer_date || '-'}`,
+            row.proof_url ? `Bukti: ${row.proof_url}` : '',
             `Status: ${row.status || '-'}`,
             row.admin_note ? `Catatan Admin: ${row.admin_note}` : ''
         ].filter(Boolean).join('\n');
         this.showTextModal(`Detail Pembayaran REQ-${row.id}`, lines);
+    },
+
+    openProof(url) {
+        try {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } catch (_) {
+            showToast('Gagal membuka bukti', 'error');
+        }
     },
 
     async setStatus(id_toko, status) {

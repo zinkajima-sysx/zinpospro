@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
         const status = String(u.searchParams.get('status') || 'submitted').trim().toLowerCase();
         const limit = Math.min(200, Math.max(1, parseInt(u.searchParams.get('limit') || '50', 10)));
         const params = new URLSearchParams();
-        params.set('select', 'id,id_toko,toko_name,owner,email,plan,amount,unique_code,total_amount,bank_target,status,transfer_name,transfer_date,admin_note,created_at,updated_at');
+        params.set('select', 'id,id_toko,toko_name,owner,email,plan,amount,unique_code,total_amount,bank_target,status,transfer_name,transfer_date,proof_url,proof_mime,admin_note,created_at,updated_at');
         params.set('order', 'created_at.desc');
         params.set('limit', String(limit));
         if (status && status !== 'all') params.set('status', `eq.${status}`);

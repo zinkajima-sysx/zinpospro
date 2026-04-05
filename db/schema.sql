@@ -47,10 +47,44 @@ create table if not exists subscription_requests (
     status text default 'pending',
     transfer_name text,
     transfer_date date,
+    proof_url text,
+    proof_mime text,
+    proof_uploaded_at timestamptz,
     admin_note text,
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
+
+do $$
+begin
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'subscription_requests'
+          and column_name = 'proof_url'
+    ) then
+        alter table public.subscription_requests add column proof_url text;
+    end if;
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'subscription_requests'
+          and column_name = 'proof_mime'
+    ) then
+        alter table public.subscription_requests add column proof_mime text;
+    end if;
+    if not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'subscription_requests'
+          and column_name = 'proof_uploaded_at'
+    ) then
+        alter table public.subscription_requests add column proof_uploaded_at timestamptz;
+    end if;
+end $$;
 
 alter table public.settings
 add column if not exists subscription_status text default 'active',

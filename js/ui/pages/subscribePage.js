@@ -168,12 +168,20 @@ const subscribePage = {
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="form-group">
-                        <label style="font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:.06em;">NAMA PENGIRIM (OPSIONAL)</label>
-                        <input id="sub-transfer-name" type="text" class="search-input" style="padding-left:14px;margin-top:6px;" value="${this.escape(this.state.transfer_name)}" placeholder="Nama di rekening pengirim">
+                        <label style="font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:.06em;">NAMA PENGIRIM (WAJIB)</label>
+                        <input id="sub-transfer-name" type="text" class="search-input" style="padding-left:14px;margin-top:6px;" value="${this.escape(this.state.transfer_name)}" placeholder="Nama di rekening pengirim" required>
                     </div>
                     <div class="form-group">
-                        <label style="font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:.06em;">TANGGAL TRANSFER (OPSIONAL)</label>
-                        <input id="sub-transfer-date" type="date" class="search-input" style="padding-left:14px;margin-top:6px;" value="${this.escape(this.state.transfer_date)}">
+                        <label style="font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:.06em;">TANGGAL TRANSFER (WAJIB)</label>
+                        <input id="sub-transfer-date" type="date" class="search-input" style="padding-left:14px;margin-top:6px;" value="${this.escape(this.state.transfer_date)}" required>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:12px;">
+                    <label style="font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:.06em;">BUKTI TRANSFER (WAJIB)</label>
+                    <input id="sub-proof" type="file" class="search-input" style="padding:10px 14px;margin-top:6px;height:auto;" accept="image/*,application/pdf" required>
+                    <div class="text-muted" style="font-size:12px;margin-top:8px;line-height:1.6;">
+                        Format: JPG/PNG/PDF, maks 2.5MB.
                     </div>
                 </div>
 
@@ -190,6 +198,7 @@ const subscribePage = {
         const req = d || lastReq;
         const total = req?.total_amount;
         const plan = req?.plan || this.state.plan;
+        const proofUrl = req?.proof_url || '';
 
         return `
             <div class="card" style="padding:22px;margin-bottom:12px;">
@@ -224,6 +233,19 @@ const subscribePage = {
                     </div>
                 </div>
 
+                <div class="card" style="padding:14px;margin-bottom:12px;">
+                    <div style="font-weight:900;margin-bottom:6px;">Bukti Transfer</div>
+                    <div class="text-muted" style="font-size:12px;line-height:1.7;">
+                        Bukti transfer sudah tersimpan di sistem. Untuk backup, Anda juga bisa mengirim email bukti transfer.
+                        Jika email tidak masuk, admin tetap bisa cek bukti di panel Super Admin.
+                    </div>
+                    ${proofUrl ? `
+                        <div style="margin-top:10px;">
+                            <a class="btn btn-outline btn-sm" href="${this.escape(proofUrl)}" target="_blank" rel="noopener noreferrer">Lihat Bukti</a>
+                        </div>
+                    ` : ``}
+                </div>
+
                 <div class="flex" style="gap:10px;flex-wrap:wrap;">
                     ${req?.mailto ? `
                         <a class="btn btn-primary" style="height:44px;background:#1e1b4b;border-color:#1e1b4b;" href="${req.mailto}">
@@ -242,6 +264,13 @@ const subscribePage = {
         const btn = document.getElementById('sub-create-btn');
         if (btn) {
             btn.onclick = () => this.createRequest();
+        }
+        const proof = document.getElementById('sub-proof');
+        if (proof) {
+            proof.onchange = () => {
+                const f = proof.files && proof.files[0] ? proof.files[0] : null;
+                this.state.proofFile = f || null;
+            };
         }
     },
 
@@ -276,6 +305,25 @@ const subscribePage = {
         const td = document.getElementById('sub-transfer-date');
         this.state.transfer_name = tn ? String(tn.value || '').trim() : '';
         this.state.transfer_date = td ? String(td.value || '').trim() : '';
+        const proofInput = document.getElementById('sub-proof');
+        const proofFile = (proofInput && proofInput.files && proofInput.files[0]) ? proofInput.files[0] : (this.state.proofFile || null);
+
+        if (!this.state.transfer_name) {
+            showToast('Nama pengirim wajib diisi', 'warning');
+            return;
+        }
+        if (!this.state.transfer_date) {
+            showToast('Tanggal transfer wajib diisi', 'warning');
+            return;
+        }
+        if (!proofFile) {
+            showToast('Bukti transfer wajib diunggah', 'warning');
+            return;
+        }
+        if (proofFile.size > 2_500_000) {
+            showToast('Ukuran bukti transfer terlalu besar (maks 2.5MB)', 'warning');
+            return;
+        }
 
         this.state.loading = true;
         const btn = document.getElementById('sub-create-btn');
@@ -285,6 +333,13 @@ const subscribePage = {
         }
 
         try {
+            const proofDataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('Gagal membaca file bukti transfer'));
+                reader.readAsDataURL(proofFile);
+            });
+
             const res = await fetch('/api/subscription/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -292,14 +347,16 @@ const subscribePage = {
                     id_toko,
                     plan,
                     transfer_name: this.state.transfer_name,
-                    transfer_date: this.state.transfer_date
+                    transfer_date: this.state.transfer_date,
+                    proof_base64: proofDataUrl,
+                    proof_mime: proofFile.type || ''
                 })
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(json.error || 'Gagal membuat permintaan pembayaran');
             this.state.requestData = json.data;
             this.state.step = 'waiting';
-            showToast('Permintaan pembayaran dibuat. Silakan kirim bukti via email.', 'success');
+            showToast('Permintaan pembayaran dibuat. Bukti sudah terkirim ke sistem.', 'success');
             this.render();
         } catch (err) {
             console.error(err);
